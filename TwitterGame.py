@@ -406,9 +406,13 @@ def main():
             result = game.update(inp)
             
             if result == 'won':
+                won = tweet('HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nWON\n')
+                won.post()                
                 del game
                 break
             elif result == 'lost':
+                lost = tweet('HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nLost\n')
+                lost.post() 
                 if score > highscore:
                     with open('highscore.txt' , 'w') as file:
                         highscore = file.write(str(score))
