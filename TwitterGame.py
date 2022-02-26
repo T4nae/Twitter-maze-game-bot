@@ -1,5 +1,5 @@
 import tweepy
-import random
+import pickle
 import time
 import csv
 import os
@@ -7,17 +7,18 @@ import os
 metrics = {'like': 0, 'retweet': 0, 'reply': 0}
 
 class tweet:
-    def __init__(self, TEXT):
-        self.TEXT = TEXT
+    def __init__(self, **kwargs):
+        self.TEXT = kwargs.get('text', "error getting text")
         self.tweet_id = ''
         #access keys    
-        self.consumer_token = "c token"
-        self.consumer_secret = "c secret"
-        self.BEARER= 'bearer'
-        self.access_token = "access token"
-        self.access_secret = "access secret"
-        # Authenticate to Twitter
-        self.client = tweepy.Client(bearer_token=self.BEARER, consumer_key=self.consumer_token, consumer_secret=self.consumer_secret, access_token=self.access_token, access_token_secret=self.access_secret,wait_on_rate_limit=True)
+        self.consumer_token = ""
+        self.consumer_secret = ""
+        self.BEARER= ''
+        self.access_token = ""
+        self.access_secret = ""
+        # Authenticate to Twitter and id
+        self.client = tweepy.Client(bearer_token=self.BEARER, consumer_key=self.consumer_token, consumer_secret=self.consumer_secret, access_token=self.access_token, access_token_secret=self.access_secret, wait_on_rate_limit=True)
+        self.user_id = self.myid()
 
     def post(self):
         # post tweet using
@@ -91,9 +92,40 @@ class tweet:
                 for tweet in tweets:
                     self.delete(tweet['id'])
             except:
+                pass  
+                                    
+    def myid(self):
+        response = self.client.get_me(tweet_fields = 'author_id')
+        data = response.data
+        return data['id']
+        
+    def get_mentions(self):
+        mentions = []
+        response = self.client.get_users_mentions(id = self.user_id)
+        tweet = response.data
+        for t in tweet:
+            mentions.append(t['id'])
+        return mentions
+                    
+    def reply(self, id):
+        replied = ['']
+        if os.path.exists('replied.bin') == False:
+            with open('replied.bin' , 'wb') as file:
+                pickle.dump(replied, file)
+    
+        with open('replied.bin' , 'rb') as file:
+            reply = pickle.load(file)
+        for ids in reply:
+            print(ids)
+            if ids == id:
                 pass
-                                                                    
-class maze:
+            else:
+                response = self.client.create_tweet(text=self.TEXT, in_reply_to_tweet_id=id)
+                reply.append(id)
+                with open('replied.bin' , 'wb') as file:
+                    pickle.dump(reply, file)
+
+                                                                            class maze:
     def __init__(self, height, width):
         self.maze = list()
         self.currentcell = list()
@@ -403,20 +435,20 @@ def main():
         
         while True:
             board =  game.printMaze()
-            tweets = tweet('HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nreply ⬅️  retweet ⬇️  like ➡️\n')
+            tweets = tweet(text = 'HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nreply ⬅️  retweet ⬇️  like ➡️\n')
             tweets.post()
-            time.sleep(360)  # 360 sec or 6mins
+            time.sleep(1)  # 360 sec or 6mins
             inp = tweets.get_metrics()
             result = game.update(inp)
             
             if result == 'won':
-                won = tweet('HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nWON\n')
+                won = tweet(text = 'HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nWON\n')
                 won.post()                
                 del game
                 break
             elif result == 'lost':
-                lost = tweet('HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nLost\n')
-                lost.post() 
+                lost = tweet(text = 'HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nLost\n')
+                lost.post()                
                 if score > highscore:
                     with open('highscore.txt' , 'w') as file:
                         highscore = file.write(str(score))
@@ -430,3 +462,4 @@ def main():
 
 if __name__ == '__main__':
     main()  
+    
