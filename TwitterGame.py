@@ -1,4 +1,5 @@
 import tweepy
+import random
 import pickle
 import time
 import csv
@@ -125,7 +126,7 @@ class tweet:
                 with open('replied.bin' , 'wb') as file:
                     pickle.dump(reply, file)
 
-                                                                            class maze:
+class maze:
     def __init__(self, height, width):
         self.maze = list()
         self.currentcell = list()
