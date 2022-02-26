@@ -435,10 +435,10 @@ class maze:
             return 'won'
 
 # reply's to tweets who mentions'
-def replyonmention(board, highscore, score):
+def replyonmention(board, highscore, score, user_id):
     tweets = tweet()
     replied = []
-    replied.append(tweet.user_id)    
+    replied.append(user_id)    
     mentions = tweets.get_mentions()
     for id in mentions:
         if(tweets.reply(id,board,highscore,score)):
@@ -473,8 +473,8 @@ def main():
             board =  game.printMaze()
             tweets = tweet(text = 'HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nreply ⬅️  retweet ⬇️  like ➡️\n')
             tweets.post()
-            # replys with current board on mentions
-            check_for_inp = replyonmention(board,highscore,score)
+            # reply's with current board on mentions
+            check_for_inp = replyonmention(board,highscore,score, tweets.user_id)
             time.sleep(360)  # 360 sec or 6mins
             inp = tweets.get_metrics(check_for_inp)
             result = game.update(inp)
