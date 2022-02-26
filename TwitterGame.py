@@ -5,7 +5,6 @@ import time
 import csv
 import os
 
-metrics = {'like': 0, 'retweet': 0, 'reply': 0}
 
 class tweet:
     def __init__(self, **kwargs):
@@ -20,7 +19,7 @@ class tweet:
         # Authenticate to Twitter and id
         self.client = tweepy.Client(bearer_token=self.BEARER, consumer_key=self.consumer_token, consumer_secret=self.consumer_secret, access_token=self.access_token, access_token_secret=self.access_secret, wait_on_rate_limit=True)
         self.user_id = self.myid()
-
+    # post an tweet
     def post(self):
         # post tweet using
         #client.create_tweet(text='text')
@@ -38,29 +37,34 @@ class tweet:
 
         self.tweet_id = tweet['id']
         self.save()
-        #print(self.tweet_id)
-
+        
+    # delete a tweet
     def delete(self, id):
         self.client.delete_tweet(id)
         print('deleted')
 
-    def get_metrics(self):
-        global metrics
-        response = self.client.get_tweet(id = self.tweet_id,tweet_fields='public_metrics')
-        print(response.data)
-        tweets = response.data
-        metrics['like'] = tweets["public_metrics"]["like_count"]
-        metrics['retweet'] = tweets["public_metrics"]["retweet_count"]
-        metrics['reply'] = tweets["public_metrics"]["reply_count"]
-        if (metrics['like'] > metrics['reply'] ) and (metrics['like'] > metrics['retweet'] ):
-            largest = 'l'
-        elif (metrics['reply']  > metrics['like']) and (metrics['reply']  > metrics['retweet'] ):
-            largest = 'r'
-        else:
-            largest = 'f'
-        #print(metrics)
-        return largest
-        
+    # returns next input for maze
+    def get_metrics(self, check):
+        metrics = {'like': 0, 'retweet': 0, 'reply': 0}
+        choice = []
+        #check which option has most votes
+        for id in check:
+            response = self.client.get_tweet(id = id,tweet_fields='public_metrics')
+            print(response.data)
+            tweets = response.data
+            metrics['like'] = tweets["public_metrics"]["like_count"]
+            metrics['retweet'] = tweets["public_metrics"]["retweet_count"]
+            metrics['reply'] = tweets["public_metrics"]["reply_count"]
+            if (metrics['like'] > metrics['reply'] ) and (metrics['like'] > metrics['retweet'] ):
+                choice.append('l')
+            elif (metrics['reply']  > metrics['like']) and (metrics['reply']  > metrics['retweet'] ):
+                choice.append('r')
+            else:
+                choice.append('f')
+        # return choice with most occurance from all tweets
+        return max(set(choice), key = choice.count)
+ 
+    # save the tweet and id in csv file       
     def save(self):
         if os.path.exists('tweets.csv') == False:
             with open('tweets.csv' , 'w') as file:
@@ -71,6 +75,7 @@ class tweet:
                 fields = [self.TEXT, self.tweet_id]
                 write.writerow(fields)
 
+    # check for existance of a tweet and delete it if there
     def check(self):
         rows = []
         
@@ -85,21 +90,30 @@ class tweet:
             write = csv.writer(file)
             write.writerows(rows)
 
+    # delete all tweets from user
+    # todo: fix this shit
     def deleteall(self):
         while True:
             try:
-                response = self.client.get_users_tweets(id = self.user_id,max_results= 100)
+                response = self.client.get_users_tweets(id = self.user_id,max_results= 51)
                 tweets = response.data
                 for tweet in tweets:
                     self.delete(tweet['id'])
             except:
-                pass  
-                                    
+                pass               
+
+    # get author id of a tweet
+    def get_authorid(self,id):
+        response = self.client.get_tweet(id=id,tweet_fields = 'author_id')
+        data = response.data
+        return data['author_id']                            
+    # get user's id'     
     def myid(self):
         response = self.client.get_me(tweet_fields = 'author_id')
         data = response.data
         return data['id']
-        
+   
+    # get recent 10 mentions  
     def get_mentions(self):
         mentions = []
         response = self.client.get_users_mentions(id = self.user_id)
@@ -107,25 +121,33 @@ class tweet:
         for t in tweet:
             mentions.append(t['id'])
         return mentions
-                    
-    def reply(self, id):
-        replied = ['']
+
+     # reply to tweets with maze                    
+    def reply(self, id, board, highscore, score):
+        
+        replied = []
+        # checks file existance if not create one
         if os.path.exists('replied.bin') == False:
             with open('replied.bin' , 'wb') as file:
                 pickle.dump(replied, file)
     
         with open('replied.bin' , 'rb') as file:
             reply = pickle.load(file)
-        for ids in reply:
-            print(ids)
-            if ids == id:
-                pass
-            else:
-                response = self.client.create_tweet(text=self.TEXT, in_reply_to_tweet_id=id)
-                reply.append(id)
-                with open('replied.bin' , 'wb') as file:
-                    pickle.dump(reply, file)
-
+            author_id = self.get_authorid(id)
+            
+            # check so accidentally not post twice to same mention or to bot itself
+            if id in reply or author_id == self.user_id :
+                return
+            else:                                
+                try:
+                    response = self.client.create_tweet(text='HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nreply ⬅️  retweet ⬇️  like ➡️\nCHECK HOW TO PLAY IN BIO', in_reply_to_tweet_id=id)
+                    reply.append(id)
+                    with open('replied.bin' , 'wb') as file:
+                        pickle.dump(reply, file)
+                        return True
+                except:
+                    pass
+                                        
 class maze:
     def __init__(self, height, width):
         self.maze = list()
@@ -412,7 +434,19 @@ class maze:
         if self.currentcell == self.finish: #win
             return 'won'
 
+# reply's to tweets who mentions'
+def replyonmention(board, highscore, score):
+    tweets = tweet()
+    replied = []
+    replied.append(tweet.user_id)    
+    mentions = tweets.get_mentions()
+    for id in mentions:
+        if(tweets.reply(id,board,highscore,score)):
+            replied.append(id)
+    return replied            
+
 def main():
+    # default maze size
     height = 4
     width = 4
     score = 0
@@ -430,31 +464,39 @@ def main():
             width = width + 1
         score = score + 1
         
-        # gameplay
+        # gameplay : create maze
         game = maze(height, width)
         game.generate()
         
         while True:
+            #send tweet with maze
             board =  game.printMaze()
             tweets = tweet(text = 'HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nreply ⬅️  retweet ⬇️  like ➡️\n')
             tweets.post()
-            time.sleep(1)  # 360 sec or 6mins
-            inp = tweets.get_metrics()
+            # replys with current board on mentions
+            check_for_inp = replyonmention(board,highscore,score)
+            time.sleep(360)  # 360 sec or 6mins
+            inp = tweets.get_metrics(check_for_inp)
             result = game.update(inp)
-            
+
+            # check conditions and decide            
             if result == 'won':
+                # send tweet with won messsge
                 won = tweet(text = 'HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nWON\n')
                 won.post()                
+                # reset the maze
                 del game
                 break
             elif result == 'lost':
+                # send tweet with lost message
                 lost = tweet(text = 'HighScore: ' + str(highscore) + ', CurrentScore: ' + str(score) + '\n' + board + '\nLost\n')
                 lost.post()                
+                # update highscores
                 if score > highscore:
                     with open('highscore.txt' , 'w') as file:
                         highscore = file.write(str(score))
                         
-                # reset maze size and score                        
+                # set new maze size and reset score                        
                 height , width = 4, 4
                 score = 0
                 break
@@ -462,5 +504,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()  
-    
+    main()
