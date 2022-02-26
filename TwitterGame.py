@@ -17,7 +17,7 @@ class tweet:
         self.access_token = "access token"
         self.access_secret = "access secret"
         # Authenticate to Twitter
-        self.client = tweepy.Client(bearer_token=self.BEARER, consumer_key=self.consumer_token, consumer_secret=self.consumer_secret, access_token=self.access_token, access_token_secret=self.access_secret)
+        self.client = tweepy.Client(bearer_token=self.BEARER, consumer_key=self.consumer_token, consumer_secret=self.consumer_secret, access_token=self.access_token, access_token_secret=self.access_secret,wait_on_rate_limit=True)
 
     def post(self):
         # post tweet using
@@ -84,10 +84,14 @@ class tweet:
             write.writerows(rows)
 
     def deleteall(self):
-        with open('tweets.csv' , 'r') as file:
-            read = csv.reader(file)
-            for row in read:
-                self.delete(row[1])
+        while True:
+            try:
+                response = self.client.get_users_tweets(id = self.user_id,max_results= 100)
+                tweets = response.data
+                for tweet in tweets:
+                    self.delete(tweet['id'])
+            except:
+                pass
                                                                     
 class maze:
     def __init__(self, height, width):
