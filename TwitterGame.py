@@ -59,8 +59,10 @@ class tweet:
                 choice.append('l')
             elif (metrics['reply']  > metrics['like']) and (metrics['reply']  > metrics['retweet'] ):
                 choice.append('r')
-            else:
+            elif (metrics['retweet']  > metrics['like']) and (metrics['retweet']  > metrics['reply'] ):
                 choice.append('f')
+            else:
+                choice.append(None)
         # return choice with most occurance from all tweets
         return max(set(choice), key = choice.count)
  
@@ -424,6 +426,8 @@ class maze:
             self.currentcell[1] = self.currentcell[1] + 1
         if input == 'f': #forward retweet
             self.currentcell[0] = self.currentcell[0] + 1
+        if input == None: #stay no response
+            return 'stay'
                
         # conditions
         if self.maze[self.currentcell[0]][self.currentcell[1]] == 'w': # wall
@@ -495,6 +499,9 @@ def main():
                 if score > highscore:
                     with open('highscore.txt' , 'w') as file:
                         highscore = file.write(str(score))
+             elif result == 'stay':
+                # no tweet
+                pass
                         
                 # set new maze size and reset score                        
                 height , width = 4, 4
